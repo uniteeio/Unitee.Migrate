@@ -9,7 +9,7 @@ public static class Migrate
 {
     public static readonly string TableName = "schema_migrations";
 
-    public static async Task<Result> CreateMigrationTableIfNotExist(string connectionString)
+    private static async Task<Result> CreateMigrationTableIfNotExist(string connectionString)
     {
         return await Result.Try(async () =>
         {
@@ -39,7 +39,7 @@ public static class Migrate
 
     }
 
-    public static bool IsNotDirty(string connectionString)
+    private static bool IsNotDirty(string connectionString)
     {
         using var conn = new SqlConnection(connectionString);
         var dirty = conn.QueryFirstOrDefault<bool>($"SELECT dirty FROM {TableName}");
