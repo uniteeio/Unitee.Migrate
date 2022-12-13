@@ -1,4 +1,4 @@
-﻿using System.Data.SqlClient;
+﻿using Microsoft.Data.SqlClient;
 using System.Numerics;
 using CSharpFunctionalExtensions;
 using Dapper;
@@ -86,20 +86,20 @@ public static class Migrate
             .BindTry(async migrations =>
             {
                 using var conn = new SqlConnection(connectionString);
-                conn.Open();
 
                 foreach (var migration in migrations)
                 {
-                    using var tx = conn.BeginTransaction();
+                    var sqlraw = File.ReadAllText(migration.Path);
 
-                    var sql = File.ReadAllText(migration.Path);
-
+                    var sqlWithTrans = $@"
+                        BEGIN TRANSACTION;
+                        {sqlraw}
+                        COMMIT;";
 
                     try
                     {
-                        await conn.ExecuteAsync(sql, transaction: tx);
+                        await conn.ExecuteAsync(sqlWithTrans);
 
-                        await tx.CommitAsync();
                         conn.Execute("UPDATE schema_migrations SET version = @version, dirty = 0", new { version = $"{migration.MigrationVersion}" });
                     } catch (SqlException e)
                     {
