@@ -2,6 +2,7 @@
 using System.Numerics;
 using CSharpFunctionalExtensions;
 using Dapper;
+using Microsoft.Extensions.Logging;
 
 namespace Unitee.Migrate;
 
@@ -46,8 +47,10 @@ public static class Migrate
         return !dirty;
     }
 
-    public static async Task<Result> MigrateAsync(string connectionString, string migrationPath)
+    public static async Task<Result> MigrateAsync<T>(string connectionString, string migrationPath, ILogger<T>? logger = null)
     {
+        Maybe<ILogger<T>> maybeLogger = logger is null ? Maybe<ILogger<T>>.None : Maybe<ILogger<T>>.From(logger);
+
         return await CreateMigrationTableIfNotExist(connectionString)
             .BindTry(() =>
             {
@@ -68,6 +71,18 @@ public static class Migrate
                 });
             })
             .Ensure(x => IsNotDirty(connectionString), "Database is in a dirty state, cannot execute migrations")
+            .Tap(migrations =>
+            {
+                maybeLogger.Execute(log =>
+                {
+                    log.LogInformation("Found {count} migrations to execute: ", migrations.Count);
+
+                    foreach (var migration in migrations)
+                    {
+                        log.LogInformation("  ==> {filename}", migration.Filename);
+                    }
+                });
+            })
             .BindTry(async migrations =>
             {
                 using var conn = new SqlConnection(connectionString);
