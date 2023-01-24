@@ -91,14 +91,9 @@ public static class Migrate
                 {
                     var sqlraw = File.ReadAllText(migration.Path);
 
-                    var sqlWithTrans = $@"
-                        BEGIN TRANSACTION;
-                        {sqlraw}
-                        COMMIT;";
-
                     try
                     {
-                        await conn.ExecuteAsync(sqlWithTrans);
+                        await conn.ExecuteAsync(sqlraw);
 
                         conn.Execute("UPDATE schema_migrations SET version = @version, dirty = 0", new { version = $"{migration.MigrationVersion}" });
                     } catch (SqlException e)
