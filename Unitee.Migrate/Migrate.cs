@@ -49,7 +49,7 @@ public static class Migrate
 
     public static async Task<Result> MigrateAsync<T>(string connectionString, string migrationPath, ILogger<T>? logger = null)
     {
-        Maybe<ILogger<T>> maybeLogger = logger is null ? Maybe<ILogger<T>>.None : Maybe<ILogger<T>>.From(logger);
+        var maybeLogger = logger.AsMaybe();
 
         return await CreateMigrationTableIfNotExist(connectionString)
             .BindTry(() =>
