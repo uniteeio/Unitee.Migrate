@@ -91,6 +91,12 @@ public static class Migrate
                 {
                     var sqlraw = File.ReadAllText(migration.Path);
 
+                    if (string.IsNullOrEmpty(sqlraw) || string.IsNullOrWhiteSpace(sqlraw))
+                    {
+                        maybeLogger.Execute(log => log.LogWarning("Skipping empty migration file {filename}", migration.Filename));
+                        continue;
+                    }
+
                     try
                     {
                         await conn.ExecuteAsync(sqlraw);
