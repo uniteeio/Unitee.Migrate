@@ -3,6 +3,7 @@ using System.Numerics;
 using CSharpFunctionalExtensions;
 using Dapper;
 using Microsoft.Extensions.Logging;
+using System.Text.RegularExpressions;
 
 namespace Unitee.Migrate;
 
@@ -30,13 +31,13 @@ public static class Migrate
                     )WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, SORT_IN_TEMPDB = OFF, IGNORE_DUP_KEY = OFF, ONLINE = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON) ON [PRIMARY]
                 END");
 
-                await conn.ExecuteAsync($@"
+            await conn.ExecuteAsync($@"
                     IF NOT EXISTS (SELECT * FROM {TableName})
                     BEGIN
                         INSERT INTO [{TableName}] (version, dirty) VALUES (0, 0)
                     END
                 ");
-            });
+        });
 
     }
 
@@ -97,12 +98,18 @@ public static class Migrate
                         continue;
                     }
 
+                    var goRegex = new Regex(@"\bGO\b", RegexOptions.IgnoreCase);
+                    var sqlBatch = goRegex.Split(sqlraw).Where(x => !string.IsNullOrWhiteSpace(x)).ToList();
+
                     try
                     {
-                        await conn.ExecuteAsync(sqlraw);
-
+                        foreach (var batch in sqlBatch)
+                        {
+                            await conn.ExecuteAsync(batch);
+                        }
                         conn.Execute("UPDATE schema_migrations SET version = @version, dirty = 0", new { version = $"{migration.MigrationVersion}" });
-                    } catch (SqlException e)
+                    }
+                    catch (SqlException e)
                     {
                         conn.Execute("UPDATE schema_migrations SET version = @version, dirty = 1", new { version = $"{migration.MigrationVersion}" });
                         return Result.Failure(e.Message);
